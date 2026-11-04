@@ -1,0 +1,53 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // User private data and all subcollections (sessions, spends, tasks, subjects, goals, events, timetable, challenges)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Public profiles (readable by any signed-in user, writable only by owner)
+    match /profiles/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // Groups and group subcollections
+    match /groups/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.admin == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.admin == request.auth.uid;
+
+      match /requests/{requestId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /joinRequests/{userId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn();
+        allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      }
+    }
+
+    // Public and group rankings
+    match /rank/{period}/entries/{entryId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}
