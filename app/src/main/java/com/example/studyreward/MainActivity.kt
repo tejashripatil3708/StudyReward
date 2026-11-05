@@ -1,4 +1,4 @@
-﻿package com.example.studyreward
+package com.example.studyreward
 
 import android.app.AppOpsManager
 import android.app.Notification
@@ -6568,6 +6568,7 @@ fun SettingsScreen(
             SettingsRow(Icons.Rounded.Timer, "Focus and breaks", "Pomodoro and break reminders") { page = "focus" }
             SettingsRow(Icons.Rounded.BeachAccess, "Days off", "Holidays and vacations") { page = "off" }
             SettingsRow(Icons.Rounded.Tune, "Rewards & Earn Rate", "Screen time ratio (1:1 parity) and daily limits") { page = "adv" }
+            SettingsRow(Icons.Rounded.Info, "Play Protect Guidelines", "How to install Special Edition without Play Protect blocking") { page = "playprotect" }
             SettingsRow(Icons.Rounded.Info, "Help and about", "How time is counted, welcome tour, sign out") { page = "about" }
             Text("StudyReward 1.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp).clickable { taps++ })
@@ -6577,6 +6578,47 @@ fun SettingsScreen(
                 Text("  Settings")
             }
             when (page) {
+                "playprotect" -> {
+                    Text("Play Protect Guidelines", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("🛡️ Why does Google Play Protect show a warning?", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Because the Special Edition detects and blocks YouTube Shorts in real-time, it requires the Android Accessibility Service. For sideloaded APKs not from the Play Store, Google Play Protect warns that the app has advanced permissions.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+
+                    SectionLabel("Option 1: Sideload Bypass (Recommended)")
+                    Text(
+                        "1. When your phone displays 'Blocked by Play Protect' during APK install:\n" +
+                        "2. Tap the small text that says 'More details'.\n" +
+                        "3. Tap 'Install anyway'.\n\n" +
+                        "The app will install normally and keep working without issues.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SectionLabel("Option 2: Temporarily Disable Play Protect Scanning")
+                    Text(
+                        "1. Open the Google Play Store on your device.\n" +
+                        "2. Tap your profile picture at the top right.\n" +
+                        "3. Tap 'Play Protect'.\n" +
+                        "4. Tap the Settings gear icon (⚙️) in the top-right corner.\n" +
+                        "5. Turn OFF 'Scan apps with Play Protect'.\n" +
+                        "6. Install the Special Edition APK, then turn it back on.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 "privacy" -> {
                     Text("Profile and privacy", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     SectionLabel("Account")
