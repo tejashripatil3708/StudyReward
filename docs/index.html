@@ -46,7 +46,35 @@
       font-size: 15px;
       color: var(--text-muted);
       line-height: 1.5;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
+    }
+    .economy-badge {
+      background: linear-gradient(135deg, #EDE9FE 0%, #F5F3FF 100%);
+      border: 1.5px solid #C4B5FD;
+      border-radius: 20px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      display: inline-block;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.08);
+    }
+    .economy-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 800;
+      color: #6D28D9;
+      margin-bottom: 4px;
+    }
+    .economy-desc {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3730A3;
+    }
+    .economy-sub {
+      font-size: 12px;
+      color: #6B7280;
+      margin-top: 2px;
     }
     .card {
       background: var(--card-bg);
@@ -60,37 +88,24 @@
     .btn-main {
       display: block;
       width: 100%;
-      padding: 16px;
+      padding: 18px 16px;
       background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
       color: white;
       text-align: center;
       text-decoration: none;
-      font-size: 17px;
-      font-weight: 700;
-      border-radius: 18px;
-      box-shadow: 0 10px 24px rgba(124, 58, 237, 0.35);
-      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 20px;
+      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.4);
+      margin-bottom: 16px;
       transition: transform 0.15s ease;
     }
     .btn-main:active {
       transform: scale(0.98);
     }
-    .btn-secondary {
-      display: block;
-      width: 100%;
-      padding: 14px;
-      background: #F5F3FF;
-      color: #6D28D9;
-      text-align: center;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
-      border-radius: 18px;
-      border: 1px solid #DDD6FE;
-    }
     .feature-list {
       list-style: none;
-      margin: 16px 0;
+      margin: 18px 0;
     }
     .feature-list li {
       display: flex;
@@ -111,9 +126,9 @@
       border: 1px dashed #C4B5FD;
     }
     .install-guide h3 {
-      font-size: 14px;
+      font-size: 13px;
       color: #5B21B6;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
@@ -124,7 +139,7 @@
       line-height: 1.6;
     }
     footer {
-      margin-top: 32px;
+      margin-top: 24px;
       font-size: 12px;
       color: var(--text-muted);
     }
@@ -141,34 +156,36 @@
     <h1>StudyReward 🌟</h1>
     <p class="tagline">Lock your distractions, earn real screen time while you study, and keep your mascot buddy happy!</p>
 
+    <div class="economy-badge">
+      <div class="economy-title">⚖️ 2:1 Screen Time Economy</div>
+      <div class="economy-desc">Study for 2 hours → Earn 1 hour of phone time!</div>
+      <div class="economy-sub">(Every 2 minutes of focus earns 1 minute of unlocked screen time)</div>
+    </div>
+
     <div class="card">
       <a href="https://github.com/tejashripatil3708/StudyReward/releases/latest/download/StudyReward-v1.0.apk" class="btn-main">
         📥 Download StudyReward (Free APK)
       </a>
-      <a href="https://github.com/tejashripatil3708/StudyReward/releases/latest/download/StudyReward-SpecialEdition-v1.0.apk" class="btn-secondary">
-        ⚡ Download Special Edition (Shorts Blocker)
-      </a>
 
       <ul class="feature-list">
-        <li><span>🧸</span> <strong>Cute Mascot Companion:</strong> Reacts to your focus & moods.</li>
-        <li><span>⏱️</span> <strong>Screen Time Economy:</strong> 1 min focus = 1 min phone time.</li>
-        <li><span>🛡️</span> <strong>Anti-Distraction Lock:</strong> Social apps lock when time runs out.</li>
-        <li><span>👥</span> <strong>Study Squads:</strong> Join live study rooms with friends.</li>
-        <li><span>🧠</span> <strong>Smart Study AI:</strong> Solves math & academic concepts instantly.</li>
+        <li><span>🧸</span> <strong>Cute Mascot Companion:</strong> Mochi sits on your screen and reacts to your focus.</li>
+        <li><span>⚖️</span> <strong>2:1 Reward Economy:</strong> Earn guilt-free screen time while you study.</li>
+        <li><span>🛡️</span> <strong>Anti-Distraction Lock:</strong> Social media automatically locks when time runs out.</li>
+        <li><span>👥</span> <strong>Study Squads:</strong> Join live study rooms with friends and share goals.</li>
+        <li><span>🧠</span> <strong>Smart Study AI:</strong> Solves math questions and homework concepts instantly.</li>
       </ul>
 
       <div class="install-guide">
-        <h3>📱 How to Install on Android:</h3>
+        <h3>📱 Quick 2-Step Install on Android:</h3>
         <ol>
           <li>Tap <strong>Download StudyReward</strong> above.</li>
-          <li>Open the downloaded file from your phone's notification bar.</li>
-          <li>Tap <strong>Install</strong> (if asked, allow installation from your browser).</li>
+          <li>Tap the downloaded file in your notifications and tap <strong>Install</strong>.</li>
         </ol>
       </div>
     </div>
 
     <footer>
-      <p>© 2026 StudyReward • Built with Jetpack Compose & Material 3</p>
+      <p>© 2026 StudyReward • Built for students by students</p>
       <p style="margin-top: 8px;">
         <a href="https://github.com/tejashripatil3708/StudyReward/blob/main/PRIVACY_POLICY.md">Privacy Policy</a> • 
         <a href="https://github.com/tejashripatil3708/StudyReward">GitHub Repository</a>

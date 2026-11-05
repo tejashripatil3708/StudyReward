@@ -2293,7 +2293,7 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
     var spent by remember { mutableStateOf(0L) }
     var todaySpends by remember { mutableStateOf(listOf<SpendEntry>()) }
     var showLedger by remember { mutableStateOf(false) }
-    var rate by remember { mutableStateOf(15) } // minutes of screen time per hour studied
+    var rate by remember { mutableStateOf(30) } // minutes of screen time per hour studied
     var using by remember { mutableStateOf(false) }
     var usingSecs by remember { mutableStateOf(0L) }
     var runningTask by remember { mutableStateOf<String?>(null) }
@@ -2339,7 +2339,7 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
             val nx = snap?.get("nx") as? Map<*, *>
             val useNx = nxFrom != null && nxFrom <= tk && nx != null
             fun pick(k: String, d: Int): Int = ((if (useNx) nx?.get(k) else snap?.get(k)) as? Number)?.toInt() ?: d
-            rate = pick("rate", 15).coerceIn(0, 120)
+            rate = pick("rate", 30).coerceIn(0, 120)
             cap = pick("taskCap", 3)
             base = pick("baseMins", 60)
             pendingFrom = if (nxFrom != null && nxFrom > tk) nxFrom else null
