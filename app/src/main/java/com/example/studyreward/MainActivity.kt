@@ -869,32 +869,59 @@ fun InteractiveMascotCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Interactive Talking Tom Mascot
-            Box(
-                modifier = Modifier
-                    .size(92.dp)
-                    .graphicsLayer {
-                        translationY = jumpOffsetY + (if (isDizzy) 0f else idleHop)
-                        rotationZ = wiggleAngle + (if (isDizzy) dizzyShake else idleWiggle)
-                        scaleX = squishScale
-                        scaleY = 2f - squishScale
-                    }
-                    .clip(CircleShape)
-                    .clickable { onPoke() },
-                contentAlignment = Alignment.Center
+            // Interactive Talking Tom Mascot Column with Change button
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                MascotCanvas(
-                    type = type,
-                    mood = if (isDizzy) MascotMood.DIZZY else if (pokeAnim) MascotMood.CHEERING else baseMood,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(
+                    modifier = Modifier
+                        .size(86.dp)
+                        .graphicsLayer {
+                            translationY = jumpOffsetY + (if (isDizzy) 0f else idleHop)
+                            rotationZ = wiggleAngle + (if (isDizzy) dizzyShake else idleWiggle)
+                            scaleX = squishScale
+                            scaleY = 2f - squishScale
+                        }
+                        .clip(CircleShape)
+                        .clickable { onPoke() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    MascotCanvas(
+                        type = type,
+                        mood = if (isDizzy) MascotMood.DIZZY else if (pokeAnim) MascotMood.CHEERING else baseMood,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onOpenCompanionPicker() }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            "Change 🐾",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.width(12.dp))
 
             // Speech bubble & action buttons
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         name,
                         fontWeight = FontWeight.Bold,
@@ -905,6 +932,25 @@ fun InteractiveMascotCard(
                     Text(type.emoji, fontSize = 15.sp)
                     Spacer(Modifier.weight(1f))
 
+                    // Explicit Swap Mascot Button
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.clickable { onOpenCompanionPicker() }
+                    ) {
+                        Text(
+                            "🐾 Swap Mascot",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     // Voice Mute Toggle
                     Text(
                         if (isMuted) "🔇 Muted" else "🔊 Voice",
@@ -921,7 +967,7 @@ fun InteractiveMascotCard(
                             .padding(horizontal = 7.dp, vertical = 4.dp)
                     )
 
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     // Ask AI button
                     Text(
@@ -933,21 +979,6 @@ fun InteractiveMascotCard(
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.primary)
                             .clickable { showAIDialog = true }
-                            .padding(horizontal = 7.dp, vertical = 4.dp)
-                    )
-
-                    Spacer(Modifier.width(4.dp))
-
-                    // Change mascot button
-                    Text(
-                        "🐾",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                            .clickable { onOpenCompanionPicker() }
                             .padding(horizontal = 7.dp, vertical = 4.dp)
                     )
                 }
@@ -977,7 +1008,7 @@ fun InteractiveMascotCard(
 
         Spacer(Modifier.height(10.dp))
 
-        // Tone selector buttons (Roast / Hype / Tips) + poke hint
+        // Tone selector buttons (Roast / Hype / Tips) + Choose mascot
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1013,12 +1044,19 @@ fun InteractiveMascotCard(
                 }
             }
 
-            Text(
-                if (isDizzy) "💫 DIZZY! 😵" else "Poke me! 🐾",
-                fontSize = 11.sp,
-                fontWeight = if (isDizzy) FontWeight.Bold else FontWeight.Normal,
-                color = if (isDizzy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-            )
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.clickable { onOpenCompanionPicker() }
+            ) {
+                Text(
+                    "🐾 Mascot Picker",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                )
+            }
         }
     }
 }
@@ -2882,13 +2920,28 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                 4 -> {
                     val user = FirebaseAuth.getInstance().currentUser
                     val userSessions = rememberSessions(uid)
+                    var showMascotProfileDlg by remember { mutableStateOf(false) }
                     ProfileTab(user?.displayName ?: "", user?.email ?: "", today.values.sum(), subjects.size,
                         tasks.count { it.done }, tasks.size, streak) {
                         if (it == "ledger") showLedger = true
                         else if (it == "tour") { tourStep = 1; tab = 0; showAppTour = true }
+                        else if (it == "mascot") { showMascotProfileDlg = true }
                         else if (it == "export") {
                             exportStudyData(ctx, user?.displayName ?: "Student", userSessions, tasks, subjects)
                         } else screen = it
+                    }
+                    if (showMascotProfileDlg) {
+                        MascotDialog(
+                            currentType = mType,
+                            currentName = mName,
+                            onSave = { t, n ->
+                                mType = t
+                                mName = n
+                                prefs.edit().putString("mascot_type", t.id).putString("mascot_name", n).apply()
+                                showMascotProfileDlg = false
+                            },
+                            onDismiss = { showMascotProfileDlg = false }
+                        )
                     }
                 }
                 2 -> TimetableTab(uid, subjects, slots, onStartStudy = { subj ->
@@ -3747,6 +3800,7 @@ fun ProfileTab(name: String, email: String, studied: Long, subjectCount: Int, do
         Text("Personal Controls", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 8.dp))
 
         listOf(
+            "🐾  Change Study Mascot & Personality" to "mascot",
             "💡  App Guided Tour (Feature Walkthrough)" to "tour",
             "Screen Time & Reward Ledger" to "ledger",
             "🏆  Badges & Achievements Shelf" to "badges",
