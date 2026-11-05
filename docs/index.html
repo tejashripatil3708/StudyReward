@@ -93,15 +93,29 @@
       color: white;
       text-align: center;
       text-decoration: none;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 800;
       border-radius: 20px;
-      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.4);
-      margin-bottom: 16px;
+      box-shadow: 0 10px 24px rgba(124, 58, 237, 0.35);
+      margin-bottom: 12px;
       transition: transform 0.15s ease;
     }
     .btn-main:active {
       transform: scale(0.98);
+    }
+    .btn-secondary {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #F5F3FF;
+      color: #6D28D9;
+      text-align: center;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 18px;
+      border: 1px solid #DDD6FE;
+      margin-bottom: 18px;
     }
     .feature-list {
       list-style: none;
@@ -122,7 +136,7 @@
       background: #FAF5FF;
       border-radius: 20px;
       padding: 18px;
-      margin-top: 20px;
+      margin-top: 16px;
       border: 1px dashed #C4B5FD;
     }
     .install-guide h3 {
@@ -137,6 +151,30 @@
       font-size: 13px;
       color: #4B5563;
       line-height: 1.6;
+    }
+    .play-protect-box {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 18px;
+      padding: 16px;
+      margin-top: 18px;
+      font-size: 13px;
+      color: #92400E;
+      line-height: 1.5;
+    }
+    .play-protect-box h4 {
+      font-size: 13px;
+      font-weight: 800;
+      color: #B45309;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .play-protect-box ol {
+      margin-left: 18px;
+      margin-top: 6px;
+      margin-bottom: 8px;
     }
     footer {
       margin-top: 24px;
@@ -164,12 +202,16 @@
 
     <div class="card">
       <a href="https://github.com/tejashripatil3708/StudyReward/releases/latest/download/StudyReward-v1.0.apk" class="btn-main">
-        📥 Download StudyReward (Free APK)
+        📥 Download StudyReward (Standard Free APK)
+      </a>
+
+      <a href="https://github.com/tejashripatil3708/StudyReward/releases/latest/download/StudyReward-SpecialEdition-v1.0.apk" class="btn-secondary">
+        ⚡ Download Special Edition (With YouTube Shorts Blocker)
       </a>
 
       <ul class="feature-list">
-        <li><span>🧸</span> <strong>Cute Mascot Companion:</strong> Mochi sits on your screen and reacts to your focus.</li>
-        <li><span>⚖️</span> <strong>2:1 Reward Economy:</strong> Earn guilt-free screen time while you study.</li>
+        <li><span>🧸</span> <strong>Cute Mascot Companion:</strong> Mochi hangs at the top boundary and reacts to your focus.</li>
+        <li><span>⚖️</span> <strong>2:1 Reward Economy:</strong> 2 hrs focus = 1 hr guilt-free phone time.</li>
         <li><span>🛡️</span> <strong>Anti-Distraction Lock:</strong> Social media automatically locks when time runs out.</li>
         <li><span>👥</span> <strong>Study Squads:</strong> Join live study rooms with friends and share goals.</li>
         <li><span>🧠</span> <strong>Smart Study AI:</strong> Solves math questions and homework concepts instantly.</li>
@@ -179,8 +221,20 @@
         <h3>📱 Quick 2-Step Install on Android:</h3>
         <ol>
           <li>Tap <strong>Download StudyReward</strong> above.</li>
-          <li>Tap the downloaded file in your notifications and tap <strong>Install</strong>.</li>
+          <li>Open the downloaded file in your notifications and tap <strong>Install</strong>.</li>
         </ol>
+      </div>
+
+      <div class="play-protect-box">
+        <h4>🛡️ If your phone shows "Blocked by Play Protect" (Special Edition):</h4>
+        <p>Because the Special Edition detects and blocks YouTube Shorts, Google Play Protect may show a warning for sideloaded apps.</p>
+        <ol>
+          <li>Tap <strong>"More details"</strong> (small text below the warning).</li>
+          <li>Tap <strong>"Install anyway"</strong>.</li>
+        </ol>
+        <p style="font-size: 11px; color: #B45309;">
+          <em>(If needed: Open Play Store → Profile Icon → Play Protect → ⚙️ Settings → temporarily turn off "Scan apps with Play Protect").</em>
+        </p>
       </div>
     </div>
 

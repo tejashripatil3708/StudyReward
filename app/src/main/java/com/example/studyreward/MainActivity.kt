@@ -1956,22 +1956,26 @@ fun DraggableHangingMascotOverlay(
         )
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(top = 10.dp, end = 16.dp),
+            .statusBarsPadding(),
         contentAlignment = Alignment.TopEnd
     ) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val maxSlidePx = with(density) { (maxWidth - 80.dp).toPx().coerceAtLeast(0f) }
+
         Row(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.End,
             modifier = Modifier
-                .offset { IntOffset(dragOffset.x.toInt(), dragOffset.y.toInt()) }
+                .padding(end = 16.dp, top = 4.dp)
+                .offset { IntOffset(dragOffset.x.toInt(), 0) } // Y strictly pinned to top boundary ceiling
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
                         change.consume()
-                        dragOffset += dragAmount
+                        val newX = (dragOffset.x + dragAmount.x).coerceIn(-maxSlidePx, 0f)
+                        dragOffset = androidx.compose.ui.geometry.Offset(newX, 0f)
                     }
                 }
         ) {
@@ -2770,7 +2774,20 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
         }
     }
 
-    BackHandler(screen != "") { screen = "" }
+    val navHistory = remember { mutableStateListOf(0) }
+
+    BackHandler(enabled = screen.isNotEmpty() || openGroupId != null || openEventId != null || navHistory.size > 1 || tab != 0) {
+        when {
+            screen.isNotEmpty() -> screen = ""
+            openGroupId != null -> openGroupId = null
+            openEventId != null -> openEventId = null
+            navHistory.size > 1 -> {
+                navHistory.removeAt(navHistory.size - 1)
+                tab = navHistory.last()
+            }
+            tab != 0 -> tab = 0
+        }
+    }
 
     Scaffold(containerColor = if (themes[themeIdx].scene.isNotEmpty()) Color.Transparent else MaterialTheme.colorScheme.background, bottomBar = {
         Row(
@@ -2783,7 +2800,14 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                 Column(
                     Modifier.weight(1f).clip(RoundedCornerShape(26.dp))
                         .background(if (on) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                        .clickable { if (i == tab && i == 3) openGroupId = null; tab = i; screen = "" }.padding(vertical = 8.dp),
+                        .clickable {
+                        if (i == tab && i == 3) openGroupId = null
+                        if (i != tab) {
+                            navHistory.add(i)
+                            tab = i
+                        }
+                        screen = ""
+                    }.padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box {
