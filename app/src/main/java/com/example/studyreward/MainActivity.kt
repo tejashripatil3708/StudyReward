@@ -114,6 +114,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
@@ -2188,34 +2189,50 @@ fun AppTourGuide(
             ) {
                 Column(Modifier.padding(20.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                "Step $step of $totalSteps",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    "Step $step of $totalSteps",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Text(
+                                    highlightLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                         Spacer(Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer
+                        TextButton(
+                            onClick = onClose,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                highlightLabel,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                "Skip Tour",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false
                             )
-                        }
-                        Spacer(Modifier.weight(1f))
-                        TextButton(onClick = onClose) {
-                            Text("Skip Tour", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
@@ -2854,13 +2871,14 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                         if (i == 3 && unreadSet.isNotEmpty())
                             Box(Modifier.size(9.dp).clip(CircleShape).background(Color(0xFFE5484D)).align(Alignment.TopEnd))
                     }
-                    Text(label, fontSize = 11.sp, color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(label, fontSize = 11.sp, maxLines = 1, softWrap = false, color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
-            if (screen == "stats") StatsScreen(uid, subjects) { screen = "" }
+            if (screen == "app_usage") AppUsageDashboardScreen(onBack = { screen = "" })
+            else if (screen == "stats") StatsScreen(uid, subjects) { screen = "" }
             else if (screen == "badges") BadgesScreen(uid, streak, tasks) { screen = "" }
             else if (screen == "logs") LogsScreen(uid, subjects) { screen = "" }
             else if (screen == "events") EventsScreen(uid, subjects, events, openEventId) { screen = ""; openEventId = null }
@@ -2898,7 +2916,7 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                             mType = t; mName = n
                             prefs.edit().putString("mascot_type", t.id).putString("mascot_name", n).apply()
                             me.set(mapOf("mascotType" to t.id, "mascotName" to n), SetOptions.merge())
-                        }, { showLedger = true }) {
+                        }, { showLedger = true }, { screen = "app_usage" }) {
                         if (using) stopUsing() else { saveRunning(); running = null; paused = false; saveTask(); using = true
                             val t0 = System.currentTimeMillis()
                             prefs.edit().putLong("blk_use_start", t0).putLong("blk_use_until", t0 + balance * 1000).apply() }
@@ -3274,6 +3292,7 @@ fun HomeTab(
     breakLeft: Int, awaiting: Boolean, roundLeft: Int, onResumeBreak: () -> Unit, pomo: Boolean, onPomo: (Boolean) -> Unit, upNext: Slot?,
     mascotType: MascotType = MascotType.MOCHI, mascotName: String = "Mochi", onMascotChange: (MascotType, String) -> Unit = { _, _ -> },
     onLedger: () -> Unit = {},
+    onAppUsage: () -> Unit = {},
     onUse: () -> Unit
 ) {
     if (running != null) {   // while a subject runs, show the focus screen with the group
@@ -3299,7 +3318,8 @@ fun HomeTab(
     ) {
         val chip = MaterialTheme.colorScheme.surfaceVariant
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(SimpleDateFormat("EEE, MM/dd", Locale.getDefault()).format(Date()), Modifier.weight(1f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(SimpleDateFormat("EEE, MM/dd", Locale.getDefault()).format(Date()), Modifier.weight(1f), fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+            Text("📊 Usage", Modifier.padding(start = 6.dp).clip(RoundedCornerShape(14.dp)).background(chip).clickable { onAppUsage() }.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 13.sp, maxLines = 1, softWrap = false)
             if (nextEvent != null) {
                 val dl = daysBetween(dateKey(), nextEvent.date)
                 Text("🎯 " + (if (dl <= 0) "today" else "${dl}d"),
@@ -3367,7 +3387,10 @@ fun HomeTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
@@ -3375,23 +3398,48 @@ fun HomeTab(
                             Text(if (dayOff) "🏝️" else "🎮", fontSize = 18.sp)
                         }
                         Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(if (dayOff) "Vacation Day!" else "Playtime Bank", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-                            Text(if (dayOff) "Unlimited screen time today ✨" else "Screen time earned from study", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(Modifier.weight(1f, fill = false)) {
+                            Text(
+                                if (dayOff) "Vacation Day!" else "Playtime Bank",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            Text(
+                                if (dayOff) "Unlimited screen time today ✨" else "Screen time earned from study",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
 
-                    // Polished Ledger Button Pill
+                    Spacer(Modifier.width(8.dp))
+
+                    // Polished Ledger Button Pill - NEVER WRAP
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.clickable { onLedger() }
                     ) {
-                        Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text("📜", fontSize = 12.sp)
                             Spacer(Modifier.width(4.dp))
-                            Text("Ledger ›", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                "Ledger ›",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                 }
@@ -6567,6 +6615,7 @@ fun SettingsScreen(
             SettingsRow(Icons.Rounded.Palette, "Appearance", "Theme and font") { page = "look" }
             SettingsRow(Icons.Rounded.Timer, "Focus and breaks", "Pomodoro and break reminders") { page = "focus" }
             SettingsRow(Icons.Rounded.BeachAccess, "Days off", "Holidays and vacations") { page = "off" }
+            SettingsRow(Icons.Rounded.Tune, "App Usage & Productivity", "Track screen time and classify productive vs distracting apps") { page = "app_usage" }
             SettingsRow(Icons.Rounded.Tune, "Rewards & Earn Rate", "Screen time ratio (1:1 parity) and daily limits") { page = "adv" }
             SettingsRow(Icons.Rounded.Info, "Play Protect Guidelines", "How to install Special Edition without Play Protect blocking") { page = "playprotect" }
             SettingsRow(Icons.Rounded.Info, "Help and about", "How time is counted, welcome tour, sign out") { page = "about" }
@@ -6578,6 +6627,7 @@ fun SettingsScreen(
                 Text("  Settings")
             }
             when (page) {
+                "app_usage" -> AppUsageDashboardScreen(onBack = { page = "" })
                 "playprotect" -> {
                     Text("Play Protect Guidelines", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
@@ -9419,6 +9469,385 @@ class BlockActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+
+// ==================== APP USAGE & PRODUCTIVITY DASHBOARD ====================
+data class UsageItem(
+    val pkg: String,
+    val label: String,
+    val icon: ImageBitmap?,
+    val foregroundMs: Long,
+    val isProductive: Boolean
+)
+
+@Composable
+fun AppUsageDashboardScreen(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+    var hasPermission by remember { mutableStateOf(usageAccessOk(ctx)) }
+
+    // Auto-refresh permission status when returning from Android Settings
+    LaunchedEffect(Unit) {
+        while (true) {
+            hasPermission = usageAccessOk(ctx)
+            delay(800)
+        }
+    }
+
+    // Persisted custom classifications
+    var userProductiveSet by remember {
+        mutableStateOf(prefs.getStringSet("custom_productive_apps", null)?.toSet() ?: emptySet())
+    }
+    var userDistractingSet by remember {
+        mutableStateOf(prefs.getStringSet("custom_distracting_apps", null)?.toSet() ?: emptySet())
+    }
+
+    fun toggleProductivity(pkg: String, currentProductive: Boolean) {
+        val newProd = !currentProductive
+        val newProdSet = userProductiveSet.toMutableSet()
+        val newDistSet = userDistractingSet.toMutableSet()
+        if (newProd) {
+            newProdSet.add(pkg)
+            newDistSet.remove(pkg)
+        } else {
+            newDistSet.add(pkg)
+            newProdSet.remove(pkg)
+        }
+        userProductiveSet = newProdSet
+        userDistractingSet = newDistSet
+        prefs.edit()
+            .putStringSet("custom_productive_apps", newProdSet)
+            .putStringSet("custom_distracting_apps", newDistSet)
+            .apply()
+    }
+
+    var selectedFilter by remember { mutableStateOf("all") } // "all", "prod", "dist"
+    var usageList by remember { mutableStateOf<List<UsageItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Load usage stats
+    LaunchedEffect(hasPermission, userProductiveSet, userDistractingSet) {
+        if (!hasPermission) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        isLoading = true
+        withContext(Dispatchers.IO) {
+            val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val startOfDay = cal.timeInMillis
+            val now = System.currentTimeMillis()
+            val stats = usm?.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startOfDay, now) ?: emptyList()
+
+            val grouped = stats.groupBy { it.packageName }
+                .mapValues { (_, l) -> l.sumOf { it.totalTimeInForeground } }
+                .filter { it.value > 15_000L } // more than 15s in foreground
+                .filter { it.key != ctx.packageName && !it.key.startsWith("com.android.systemui") }
+
+            val pm = ctx.packageManager
+            val items = grouped.map { (pkg, ms) ->
+                val label = try {
+                    val ai = pm.getApplicationInfo(pkg, 0)
+                    pm.getApplicationLabel(ai).toString()
+                } catch (e: Exception) {
+                    pkg.substringAfterLast('.')
+                }
+                val icon = try {
+                    val ai = pm.getApplicationInfo(pkg, 0)
+                    pm.getApplicationIcon(ai).toBitmap(72, 72).asImageBitmap()
+                } catch (e: Exception) { null }
+
+                val isProductive = when {
+                    userProductiveSet.contains(pkg) -> true
+                    userDistractingSet.contains(pkg) -> false
+                    DEFAULT_DISTRACTING.contains(pkg) || pkg == YT -> false
+                    pkg.contains("game", ignoreCase = true) || pkg.contains("netflix", ignoreCase = true) || pkg.contains("twitch", ignoreCase = true) -> false
+                    pkg.contains("study", ignoreCase = true) || pkg.contains("duolingo", ignoreCase = true) || pkg.contains("khan", ignoreCase = true) || pkg.contains("notion", ignoreCase = true) || pkg.contains("anki", ignoreCase = true) || pkg.contains("classroom", ignoreCase = true) || pkg.contains("calculator", ignoreCase = true) -> true
+                    else -> true
+                }
+
+                UsageItem(pkg, label, icon, ms, isProductive)
+            }.sortedByDescending { it.foregroundMs }
+
+            withContext(Dispatchers.Main) {
+                usageList = items
+                isLoading = false
+            }
+        }
+    }
+
+    val totalMs = usageList.sumOf { it.foregroundMs }
+    val prodMs = usageList.filter { it.isProductive }.sumOf { it.foregroundMs }
+    val distMs = usageList.filter { !it.isProductive }.sumOf { it.foregroundMs }
+    val prodPct = if (totalMs > 0) ((prodMs.toFloat() / totalMs) * 100).toInt().coerceIn(0, 100) else 100
+
+    val filteredList = when (selectedFilter) {
+        "prod" -> usageList.filter { it.isProductive }
+        "dist" -> usageList.filter { !it.isProductive }
+        else -> usageList
+    }
+
+    BackHandler { onBack() }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Back header
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                Text("  Back", maxLines = 1, softWrap = false)
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            ) {
+                Text("Today", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), maxLines = 1, softWrap = false)
+            }
+        }
+
+        Text("App Usage & Productivity", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+        Text("Track screen time and classify productive vs distracting apps", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 16.dp))
+
+        if (!hasPermission) {
+            // Permission Banner
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("📊", fontSize = 28.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Usage Access Required", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onErrorContainer, maxLines = 1, softWrap = false)
+                            Text("To view your daily app usage breakdown, grant Android Usage Access.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f))
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                ctx.startActivity(Intent(AndroidSettings.ACTION_USAGE_ACCESS_SETTINGS))
+                            } catch (e: Exception) { }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant Usage Access ⚡", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                    }
+                }
+            }
+        } else {
+            // Summary Dashboard Card
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Daily Screen Time Summary", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(hm(totalMs / 1000), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                        Spacer(Modifier.width(8.dp))
+                        Text("screen on", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp), maxLines = 1, softWrap = false)
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Progress Bar: Green (Productive) vs Coral (Distracting)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(Color(0xFFE57373))
+                    ) {
+                        if (prodPct > 0) {
+                            Box(
+                                Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(prodPct / 100f)
+                                    .background(Color(0xFF4CAF50))
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Stat Pills
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Productive: ${hm(prodMs / 1000)} ($prodPct%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFE57373)))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Distracting: ${hm(distMs / 1000)} (${100 - prodPct}%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Mascot Analysis Quote
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (prodPct >= 75) "🌟" else if (prodPct >= 50) "⚖️" else "💀", fontSize = 22.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                when {
+                                    prodPct >= 75 -> "Focus Master! Over 75% of your phone time is productive. Excellent focus!"
+                                    prodPct >= 50 -> "Balanced day. Productive apps are leading, but keep an eye on distracting reels!"
+                                    else -> "Distraction alert! Non-productive apps are taking over your day. Time to lock in!"
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Filter Tabs
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    Triple("all", "All (${usageList.size})", MaterialTheme.colorScheme.surfaceVariant),
+                    Triple("prod", "🟢 Productive (${usageList.count { it.isProductive }})", Color(0xFFE8F5E9)),
+                    Triple("dist", "🔴 Distracting (${usageList.count { !it.isProductive }})", Color(0xFFFFEBEE))
+                ).forEach { (key, label, activeBg) ->
+                    val selected = selectedFilter == key
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { selectedFilter = key }
+                    ) {
+                        Text(
+                            label,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
+
+            Text("💡 Tap any app's green or red tag to reclassify it as Productive or Distracting.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp))
+
+            if (isLoading) {
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                }
+            } else if (filteredList.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)
+                ) {
+                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📱", fontSize = 32.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("No apps in this category yet today", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                    }
+                }
+            } else {
+                // Apps List
+                filteredList.forEach { item ->
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (item.icon != null) {
+                                Image(
+                                    bitmap = item.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(10.dp))
+                                )
+                            } else {
+                                Box(
+                                    Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(item.label.take(1).uppercase(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1, softWrap = false)
+                                }
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Column(Modifier.weight(1f)) {
+                                Text(item.label, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val itemPct = if (totalMs > 0) ((item.foregroundMs.toFloat() / totalMs) * 100).toInt() else 0
+                                Text("${hm(item.foregroundMs / 1000)}  •  $itemPct% of screen time", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                            }
+
+                            Spacer(Modifier.width(8.dp))
+
+                            // One-Tap Productivity Toggle Pill
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (item.isProductive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (item.isProductive) Color(0xFFA5D6A7) else Color(0xFFFFCDD2)),
+                                modifier = Modifier.clickable { toggleProductivity(item.pkg, item.isProductive) }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        if (item.isProductive) "🟢 Productive" else "🔴 Distracting",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (item.isProductive) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(40.dp))
     }
 }
 
