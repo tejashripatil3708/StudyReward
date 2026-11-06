@@ -2327,6 +2327,7 @@ fun App(
     val isCustomWpActive = customWallpaperEnabled && customWallpaperPath != null && File(customWallpaperPath).exists()
     val hasBgArt = isCustomWpActive || themes[themeIdx].scene.isNotEmpty()
     var settingsInitialPage by remember { mutableStateOf("") }
+    var previousScreen by remember { mutableStateOf("") }
     Surface(Modifier.fillMaxSize(), color = if (hasBgArt) Color.Transparent else MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface) {
         if (uid == null) {
@@ -2359,6 +2360,7 @@ fun Main(
     val isCustomWpActive = customWallpaperEnabled && customWallpaperPath != null && File(customWallpaperPath).exists()
     val hasBgArt = isCustomWpActive || themes[themeIdx].scene.isNotEmpty()
     var settingsInitialPage by remember { mutableStateOf("") }
+    var previousScreen by remember { mutableStateOf("") }
     var subjects by remember { mutableStateOf(listOf<Subject>()) }
     var tasks by remember { mutableStateOf(listOf<TaskItem>()) }
     var today by remember { mutableStateOf(mapOf<String, Long>()) }
@@ -2924,7 +2926,10 @@ fun Main(
         }
     }) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
-            if (screen == "app_usage") AppUsageDashboardScreen(onBack = { screen = "" })
+            if (screen == "app_usage") AppUsageDashboardScreen(onBack = {
+                screen = previousScreen
+                previousScreen = ""
+            })
             else if (screen == "stats") StatsScreen(uid, subjects) { screen = "" }
             else if (screen == "badges") BadgesScreen(uid, streak, tasks) { screen = "" }
             else if (screen == "logs") LogsScreen(uid, subjects) { screen = "" }
@@ -2956,6 +2961,7 @@ fun Main(
                     { prefs.edit().putBoolean("ack1", false).apply(); ack = false; screen = "" },
                     customWallpaperPath, customWallpaperEnabled, customWallpaperDark, customWallpaperDim, onCustomWallpaperChange,
                     initialPage = settingsInitialPage,
+                    onAppUsage = { previousScreen = "settings"; screen = "app_usage" },
                     onBack = { screen = ""; settingsInitialPage = "" }
                 )
             } else when (tab) {
@@ -3002,6 +3008,7 @@ fun Main(
                         else if (it == "tour") { tourStep = 1; tab = 0; showAppTour = true }
                         else if (it == "mascot") { showMascotProfileDlg = true }
                         else if (it == "theme_settings" || it == "look") { settingsInitialPage = "look"; screen = "settings" }
+                        else if (it == "app_usage") { previousScreen = ""; screen = "app_usage" }
                         else if (it == "export") {
                             exportStudyData(ctx, user?.displayName ?: "Student", userSessions, tasks, subjects)
                         } else screen = it
@@ -6652,6 +6659,7 @@ fun SettingsScreen(
     customWallpaperPath: String?, customWallpaperEnabled: Boolean, customWallpaperDark: Boolean, customWallpaperDim: Float,
     onCustomWallpaperChange: (String?, Boolean, Boolean, Float) -> Unit,
     initialPage: String = "",
+    onAppUsage: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -6701,7 +6709,7 @@ fun SettingsScreen(
             SettingsRow(Icons.Rounded.Palette, "Appearance", "Custom photo theme, wallpapers & font") { page = "look" }
             SettingsRow(Icons.Rounded.Timer, "Focus and breaks", "Pomodoro and break reminders") { page = "focus" }
             SettingsRow(Icons.Rounded.BeachAccess, "Days off", "Holidays and vacations") { page = "off" }
-            SettingsRow(Icons.Rounded.Tune, "App Usage & Productivity", "Track screen time and classify productive vs distracting apps") { page = "app_usage" }
+            SettingsRow(Icons.Rounded.Tune, "App Usage & Productivity", "Track screen time and classify productive vs distracting apps") { onAppUsage() }
             SettingsRow(Icons.Rounded.Tune, "Rewards & Earn Rate", "Screen time ratio (1:1 parity) and daily limits") { page = "adv" }
             SettingsRow(Icons.Rounded.Info, "Play Protect Guidelines", "How to install Special Edition without Play Protect blocking") { page = "playprotect" }
             SettingsRow(Icons.Rounded.Info, "Help and about", "How time is counted, welcome tour, sign out") { page = "about" }
@@ -6713,7 +6721,6 @@ fun SettingsScreen(
                 Text("  Settings")
             }
             when (page) {
-                "app_usage" -> AppUsageDashboardScreen(onBack = { page = "" })
                 "playprotect" -> {
                     Text("Play Protect Guidelines", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
@@ -9797,6 +9804,17 @@ data class UsageItem(
     val isProductive: Boolean
 )
 
+fun formatUsageDuration(ms: Long): String {
+    val totalSecs = (ms / 1000L).coerceAtLeast(0L)
+    val hrs = totalSecs / 3600
+    val mins = (totalSecs % 3600) / 60
+    return when {
+        hrs > 0 -> "${hrs}h ${mins}m"
+        mins > 0 -> "${mins}m"
+        else -> "<1m"
+    }
+}
+
 @Composable
 fun AppUsageDashboardScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
@@ -9819,6 +9837,10 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
         mutableStateOf(prefs.getStringSet("custom_distracting_apps", null)?.toSet() ?: emptySet())
     }
 
+    var selectedFilter by remember { mutableStateOf("all") } // "all", "prod", "dist"
+    var usageList by remember { mutableStateOf<List<UsageItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
     fun toggleProductivity(pkg: String, currentProductive: Boolean) {
         val newProd = !currentProductive
         val newProdSet = userProductiveSet.toMutableSet()
@@ -9836,14 +9858,15 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
             .putStringSet("custom_productive_apps", newProdSet)
             .putStringSet("custom_distracting_apps", newDistSet)
             .apply()
+
+        // Instant in-memory update with zero reload flicker
+        usageList = usageList.map {
+            if (it.pkg == pkg) it.copy(isProductive = newProd) else it
+        }
     }
 
-    var selectedFilter by remember { mutableStateOf("all") } // "all", "prod", "dist"
-    var usageList by remember { mutableStateOf<List<UsageItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    // Load usage stats
-    LaunchedEffect(hasPermission, userProductiveSet, userDistractingSet) {
+    // Load usage stats strictly from midnight today (00:00:00) to current moment
+    LaunchedEffect(hasPermission) {
         if (!hasPermission) {
             isLoading = false
             return@LaunchedEffect
@@ -9859,15 +9882,75 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
             }
             val startOfDay = cal.timeInMillis
             val now = System.currentTimeMillis()
-            val stats = usm?.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startOfDay, now) ?: emptyList()
+            val elapsedToday = (now - startOfDay).coerceAtLeast(0L)
 
-            val grouped = stats.groupBy { it.packageName }
-                .mapValues { (_, l) -> l.sumOf { it.totalTimeInForeground } }
-                .filter { it.value > 15_000L } // more than 15s in foreground
-                .filter { it.key != ctx.packageName && !it.key.startsWith("com.android.systemui") }
+            val appForegroundMap = mutableMapOf<String, Long>()
+            var processedEvents = false
+
+            if (usm != null) {
+                try {
+                    val events = usm.queryEvents(startOfDay, now)
+                    val event = UsageEvents.Event()
+                    val resumeMap = mutableMapOf<String, Long>()
+
+                    while (events.hasNextEvent()) {
+                        events.getNextEvent(event)
+                        val pkg = event.packageName ?: continue
+                        if (pkg == ctx.packageName || pkg.startsWith("com.android.systemui")) continue
+
+                        val t = event.timeStamp.coerceIn(startOfDay, now)
+                        when (event.eventType) {
+                            UsageEvents.Event.ACTIVITY_RESUMED -> {
+                                resumeMap[pkg] = t
+                                processedEvents = true
+                            }
+                            UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.ACTIVITY_STOPPED -> {
+                                val start = resumeMap.remove(pkg)
+                                if (start != null && t > start) {
+                                    val dur = t - start
+                                    appForegroundMap[pkg] = (appForegroundMap[pkg] ?: 0L) + dur
+                                    processedEvents = true
+                                }
+                            }
+                        }
+                    }
+                    // For currently active app right now
+                    for ((pkg, start) in resumeMap) {
+                        if (now > start) {
+                            val dur = now - start
+                            appForegroundMap[pkg] = (appForegroundMap[pkg] ?: 0L) + dur
+                            processedEvents = true
+                        }
+                    }
+                } catch (t: Throwable) {
+                    processedEvents = false
+                }
+
+                // Fallback to queryUsageStats only if queryEvents yielded zero records
+                if (!processedEvents || appForegroundMap.isEmpty()) {
+                    try {
+                        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startOfDay, now) ?: emptyList()
+                        val filtered = stats.filter {
+                            it.lastTimeStamp >= startOfDay &&
+                            it.packageName != ctx.packageName &&
+                            !it.packageName.startsWith("com.android.systemui")
+                        }
+                        // Group by package and pick the newest snapshot (never sum cumulative snapshots)
+                        filtered.groupBy { it.packageName }.forEach { (pkg, list) ->
+                            val best = list.maxByOrNull { it.lastTimeStamp }
+                            val fg = best?.totalTimeInForeground ?: 0L
+                            if (fg > 0L) appForegroundMap[pkg] = fg
+                        }
+                    } catch (t: Throwable) { }
+                }
+            }
+
+            // Strictly clamp every app to the total milliseconds elapsed since midnight today
+            val clampedMap = appForegroundMap.mapValues { (_, ms) -> minOf(ms, elapsedToday) }
+                .filter { it.value >= 15_000L }
 
             val pm = ctx.packageManager
-            val items = grouped.map { (pkg, ms) ->
+            val items = clampedMap.map { (pkg, ms) ->
                 val label = try {
                     val ai = pm.getApplicationInfo(pkg, 0)
                     pm.getApplicationLabel(ai).toString()
@@ -9876,8 +9959,11 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                 }
                 val icon = try {
                     val ai = pm.getApplicationInfo(pkg, 0)
-                    pm.getApplicationIcon(ai).toBitmap(72, 72).asImageBitmap()
-                } catch (e: Exception) { null }
+                    val drawable = pm.getApplicationIcon(ai)
+                    val w = if (drawable.intrinsicWidth in 1..96) drawable.intrinsicWidth else 72
+                    val h = if (drawable.intrinsicHeight in 1..96) drawable.intrinsicHeight else 72
+                    drawable.toBitmap(w, h).asImageBitmap()
+                } catch (t: Throwable) { null }
 
                 val isProductive = when {
                     userProductiveSet.contains(pkg) -> true
@@ -9932,12 +10018,12 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
             ) {
-                Text("Today", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), maxLines = 1, softWrap = false)
+                Text("Today · Midnight to Now", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), maxLines = 1, softWrap = false)
             }
         }
 
         Text("App Usage & Productivity", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
-        Text("Track screen time and classify productive vs distracting apps", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 16.dp))
+        Text("Real-time screen time strictly from midnight to now", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 16.dp))
 
         if (!hasPermission) {
             // Permission Banner
@@ -9948,7 +10034,7 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("📊", fontSize = 28.sp)
+                        Text("🛡️", fontSize = 28.sp)
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text("Usage Access Required", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onErrorContainer, maxLines = 1, softWrap = false)
@@ -9966,7 +10052,7 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Grant Usage Access ⚡", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                        Text("Grant Usage Access ⚙️", fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                     }
                 }
             }
@@ -9979,29 +10065,30 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("Daily Screen Time Summary", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                    Text("Today's Screen Time (Since Midnight)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(hm(totalMs / 1000), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                        Text(formatUsageDuration(totalMs), fontSize = 32.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
                         Spacer(Modifier.width(8.dp))
-                        Text("screen on", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp), maxLines = 1, softWrap = false)
+                        Text("screen on today", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp), maxLines = 1, softWrap = false)
                     }
 
                     Spacer(Modifier.height(14.dp))
 
                     // Progress Bar: Green (Productive) vs Coral (Distracting)
+                    val barBg = if (totalMs == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFE57373)
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .height(14.dp)
                             .clip(RoundedCornerShape(7.dp))
-                            .background(Color(0xFFE57373))
+                            .background(barBg)
                     ) {
-                        if (prodPct > 0) {
+                        if (totalMs > 0L && prodPct > 0) {
                             Box(
                                 Modifier
                                     .fillMaxHeight()
-                                    .fillMaxWidth(prodPct / 100f)
+                                    .fillMaxWidth((prodPct / 100f).coerceIn(0.01f, 1f))
                                     .background(Color(0xFF4CAF50))
                             )
                         }
@@ -10014,12 +10101,12 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
                             Spacer(Modifier.width(6.dp))
-                            Text("Productive: ${hm(prodMs / 1000)} ($prodPct%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                            Text("Productive: ${formatUsageDuration(prodMs)} ($prodPct%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFE57373)))
                             Spacer(Modifier.width(6.dp))
-                            Text("Distracting: ${hm(distMs / 1000)} (${100 - prodPct}%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+                            Text("Distracting: ${formatUsageDuration(distMs)} (${100 - prodPct}%)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
                         }
                     }
 
@@ -10033,10 +10120,11 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (prodPct >= 75) "🌟" else if (prodPct >= 50) "⚖️" else "💀", fontSize = 22.sp)
+                            Text(if (prodPct >= 75) "🌟" else if (prodPct >= 50) "⚖️" else "🚨", fontSize = 22.sp)
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 when {
+                                    totalMs == 0L -> "No app activity recorded yet today. Time to start studying!"
                                     prodPct >= 75 -> "Focus Master! Over 75% of your phone time is productive. Excellent focus!"
                                     prodPct >= 50 -> "Balanced day. Productive apps are leading, but keep an eye on distracting reels!"
                                     else -> "Distraction alert! Non-productive apps are taking over your day. Time to lock in!"
@@ -10131,7 +10219,7 @@ fun AppUsageDashboardScreen(onBack: () -> Unit) {
                             Column(Modifier.weight(1f)) {
                                 Text(item.label, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 val itemPct = if (totalMs > 0) ((item.foregroundMs.toFloat() / totalMs) * 100).toInt() else 0
-                                Text("${hm(item.foregroundMs / 1000)}  •  $itemPct% of screen time", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                                Text("${formatUsageDuration(item.foregroundMs)}  •  $itemPct% of screen time", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                             }
 
                             Spacer(Modifier.width(8.dp))

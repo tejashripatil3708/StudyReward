@@ -5,14 +5,14 @@
 ![StudyReward Icon](app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)
 
 ---
-## 📥 Download Latest APK (v1.0.3)
+## 📥 Download Latest APK (v1.0.4)
 
 | Edition | Direct Download Link | Best For |
 | :--- | :--- | :--- |
-| **Friends Edition (v1.0.3)** | [**StudyReward-v1.0.3.apk**](https://github.com/tejashripatil3708/StudyReward/releases/download/v1.0.3/StudyReward-v1.0.3.apk) | Fast sideloading, zero Google Play Protect warnings, friends & classmates. |
-| **Special Edition (v1.0.3)** | [**StudyReward-SpecialEdition-v1.0.3.apk**](https://github.com/tejashripatil3708/StudyReward/releases/download/v1.0.3/StudyReward-SpecialEdition-v1.0.3.apk) | Strict app locking, real-time YouTube Shorts & Instagram Reels blocker. |
+| **Friends Edition (v1.0.4)** | [**StudyReward-v1.0.4.apk**](https://github.com/tejashripatil3708/StudyReward/releases/download/v1.0.4/StudyReward-v1.0.4.apk) | Fast sideloading, zero Google Play Protect warnings, friends & classmates. |
+| **Special Edition (v1.0.4)** | [**StudyReward-SpecialEdition-v1.0.4.apk**](https://github.com/tejashripatil3708/StudyReward/releases/download/v1.0.4/StudyReward-SpecialEdition-v1.0.4.apk) | Strict app locking, real-time YouTube Shorts & Instagram Reels blocker. |
 
-🔗 **Full Release Notes & Assets:** [GitHub Release v1.0.3](https://github.com/tejashripatil3708/StudyReward/releases/tag/v1.0.3)  
+🔗 **Full Release Notes & Assets:** [GitHub Release v1.0.4](https://github.com/tejashripatil3708/StudyReward/releases/tag/v1.0.4)  
 🌐 **Landing Page:** [StudyReward Web](https://tejashripatil3708.github.io/StudyReward/)
 
 ---
