@@ -1,5 +1,9 @@
 package com.example.studyreward
 
+import java.io.File
+import androidx.compose.ui.layout.ContentScale
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AppOpsManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -1600,12 +1604,37 @@ class MainActivity : ComponentActivity() {
             if (!prefs.contains("themeV3")) prefs.edit().putInt("theme", 0).putBoolean("themeV3", true).apply()
             var themeIdx by remember { mutableStateOf(prefs.getInt("theme", 0).coerceIn(0, themes.size - 1)) }
             var fontIdx by remember { mutableStateOf(fonts.indexOfFirst { it.first == prefs.getString("fontName", "Default") }.coerceAtLeast(0)) }
+            var customWallpaperPath by remember { mutableStateOf(prefs.getString("custom_wallpaper_path", null)) }
+            var customWallpaperEnabled by remember { mutableStateOf(prefs.getBoolean("custom_wallpaper_enabled", false)) }
+            var customWallpaperDark by remember { mutableStateOf(prefs.getBoolean("custom_wallpaper_dark", true)) }
+            var customWallpaperDim by remember { mutableStateOf(prefs.getFloat("custom_wallpaper_dim", 0.35f)) }
+
             MaterialTheme(colorScheme = scheme(themes[themeIdx]), typography = typographyFor(fonts[fontIdx].second)) {
                 Box(Modifier.fillMaxSize()) {
-                    val t = themes[themeIdx]
-                    if (t.scene.isNotEmpty()) SceneBackground(t.scene, Color(t.bg))
-                    App(themeIdx, { themeIdx = it; prefs.edit().putInt("theme", it).apply() },
-                        fontIdx, { fontIdx = it; prefs.edit().putString("fontName", fonts[it].first).apply() })
+                    val isCustomWpActive = customWallpaperEnabled && customWallpaperPath != null && File(customWallpaperPath!!).exists()
+                    if (isCustomWpActive) {
+                        CustomImageBackground(customWallpaperPath!!, customWallpaperDark, customWallpaperDim)
+                    } else {
+                        val t = themes[themeIdx]
+                        if (t.scene.isNotEmpty()) SceneBackground(t.scene, Color(t.bg))
+                    }
+                    App(
+                        themeIdx, { themeIdx = it; prefs.edit().putInt("theme", it).apply() },
+                        fontIdx, { fontIdx = it; prefs.edit().putString("fontName", fonts[it].first).apply() },
+                        customWallpaperPath, customWallpaperEnabled, customWallpaperDark, customWallpaperDim,
+                        { path, enabled, dark, dim ->
+                            customWallpaperPath = path
+                            customWallpaperEnabled = enabled
+                            customWallpaperDark = dark
+                            customWallpaperDim = dim
+                            prefs.edit()
+                                .putString("custom_wallpaper_path", path)
+                                .putBoolean("custom_wallpaper_enabled", enabled)
+                                .putBoolean("custom_wallpaper_dark", dark)
+                                .putFloat("custom_wallpaper_dim", dim)
+                                .apply()
+                        }
+                    )
                 }
             }
         }
@@ -2285,13 +2314,20 @@ fun AppTourGuide(
 }
 
 @Composable
-fun App(themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFont: (Int) -> Unit) {
+fun App(
+    themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFont: (Int) -> Unit,
+    customWallpaperPath: String?, customWallpaperEnabled: Boolean, customWallpaperDark: Boolean, customWallpaperDim: Float,
+    onCustomWallpaperChange: (String?, Boolean, Boolean, Float) -> Unit
+) {
     val auth = FirebaseAuth.getInstance()
     var uid by remember { mutableStateOf(auth.currentUser?.uid) }
     var error by remember { mutableStateOf("") }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    Surface(Modifier.fillMaxSize(), color = if (themes[themeIdx].scene.isNotEmpty()) Color.Transparent else MaterialTheme.colorScheme.surface,
+    val isCustomWpActive = customWallpaperEnabled && customWallpaperPath != null && File(customWallpaperPath).exists()
+    val hasBgArt = isCustomWpActive || themes[themeIdx].scene.isNotEmpty()
+    var settingsInitialPage by remember { mutableStateOf("") }
+    Surface(Modifier.fillMaxSize(), color = if (hasBgArt) Color.Transparent else MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface) {
         if (uid == null) {
             Column(Modifier.fillMaxSize().padding(24.dp), Arrangement.Center, Alignment.CenterHorizontally) {
@@ -2305,13 +2341,24 @@ fun App(themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFont: (Int) -> Un
                 }) { Text("Sign in with Google") }
                 Text(error)
             }
-        } else Main(uid!!, themeIdx, onTheme, fontIdx, onFont) { auth.signOut(); uid = null }
+        } else Main(
+            uid!!, themeIdx, onTheme, fontIdx, onFont,
+            customWallpaperPath, customWallpaperEnabled, customWallpaperDark, customWallpaperDim, onCustomWallpaperChange
+        ) { auth.signOut(); uid = null }
     }
 }
 
 @Composable
-fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFont: (Int) -> Unit, onSignOut: () -> Unit) {
+fun Main(
+    uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFont: (Int) -> Unit,
+    customWallpaperPath: String?, customWallpaperEnabled: Boolean, customWallpaperDark: Boolean, customWallpaperDim: Float,
+    onCustomWallpaperChange: (String?, Boolean, Boolean, Float) -> Unit,
+    onSignOut: () -> Unit
+) {
     val me = FirebaseFirestore.getInstance().collection("users").document(uid)
+    val isCustomWpActive = customWallpaperEnabled && customWallpaperPath != null && File(customWallpaperPath).exists()
+    val hasBgArt = isCustomWpActive || themes[themeIdx].scene.isNotEmpty()
+    var settingsInitialPage by remember { mutableStateOf("") }
     var subjects by remember { mutableStateOf(listOf<Subject>()) }
     var tasks by remember { mutableStateOf(listOf<TaskItem>()) }
     var today by remember { mutableStateOf(mapOf<String, Long>()) }
@@ -2844,7 +2891,7 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
         }
     }
 
-    Scaffold(containerColor = if (themes[themeIdx].scene.isNotEmpty()) Color.Transparent else MaterialTheme.colorScheme.background, bottomBar = {
+    Scaffold(containerColor = if (hasBgArt) Color.Transparent else MaterialTheme.colorScheme.background, bottomBar = {
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(32.dp)).padding(6.dp)
@@ -2893,15 +2940,24 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
             }) { screen = "" }
             else if (screen == "safety") SafetyScreen(uid) { screen = "" }
             else if (screen == "chat") ChatScreen(uid, groups.find { it.id == chatGroup }, { chatGroup?.let { markRead(it) } }) { screen = "" }
+            else if (screen == "theme_settings") {
+                settingsInitialPage = "look"
+                screen = "settings"
+            }
             else if (screen == "settings") {
                 val user = FirebaseAuth.getInstance().currentUser
                 val studiedTodayTotal = today.values.sum() + (if (provisional) 0 else secs)
-                SettingsScreen(user?.displayName ?: "", user?.email ?: "", themeIdx, onTheme, fontIdx, onFont, daysOff,
+                SettingsScreen(
+                    user?.displayName ?: "", user?.email ?: "", themeIdx, onTheme, fontIdx, onFont, daysOff,
                     { me.set(mapOf("daysOff" to it), SetOptions.merge()) }, rate, cap, base, pendingFrom, studiedTodayTotal,
                     ::saveAdvanced, onSignOut, fp, { setFp(it) },
                     nick, { me.set(mapOf("nickname" to it.trim()), SetOptions.merge()) },
                     optIn, { me.set(mapOf("rankOptIn" to it), SetOptions.merge()) },
-                    { prefs.edit().putBoolean("ack1", false).apply(); ack = false; screen = "" }) { screen = "" }
+                    { prefs.edit().putBoolean("ack1", false).apply(); ack = false; screen = "" },
+                    customWallpaperPath, customWallpaperEnabled, customWallpaperDark, customWallpaperDim, onCustomWallpaperChange,
+                    initialPage = settingsInitialPage,
+                    onBack = { screen = ""; settingsInitialPage = "" }
+                )
             } else when (tab) {
                 0 -> {
                     HomeTab(subjects, today, running, secs, ::toggle,
@@ -2916,7 +2972,8 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                             mType = t; mName = n
                             prefs.edit().putString("mascot_type", t.id).putString("mascot_name", n).apply()
                             me.set(mapOf("mascotType" to t.id, "mascotName" to n), SetOptions.merge())
-                        }, { showLedger = true }, { screen = "app_usage" }) {
+                        }, { showLedger = true }, { screen = "app_usage" },
+                        { settingsInitialPage = "look"; screen = "settings" }) {
                         if (using) stopUsing() else { saveRunning(); running = null; paused = false; saveTask(); using = true
                             val t0 = System.currentTimeMillis()
                             prefs.edit().putLong("blk_use_start", t0).putLong("blk_use_until", t0 + balance * 1000).apply() }
@@ -2944,6 +3001,7 @@ fun Main(uid: String, themeIdx: Int, onTheme: (Int) -> Unit, fontIdx: Int, onFon
                         if (it == "ledger") showLedger = true
                         else if (it == "tour") { tourStep = 1; tab = 0; showAppTour = true }
                         else if (it == "mascot") { showMascotProfileDlg = true }
+                        else if (it == "theme_settings" || it == "look") { settingsInitialPage = "look"; screen = "settings" }
                         else if (it == "export") {
                             exportStudyData(ctx, user?.displayName ?: "Student", userSessions, tasks, subjects)
                         } else screen = it
@@ -3293,6 +3351,7 @@ fun HomeTab(
     mascotType: MascotType = MascotType.MOCHI, mascotName: String = "Mochi", onMascotChange: (MascotType, String) -> Unit = { _, _ -> },
     onLedger: () -> Unit = {},
     onAppUsage: () -> Unit = {},
+    onThemeSettings: () -> Unit = {},
     onUse: () -> Unit
 ) {
     if (running != null) {   // while a subject runs, show the focus screen with the group
@@ -3320,6 +3379,7 @@ fun HomeTab(
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(SimpleDateFormat("EEE, MM/dd", Locale.getDefault()).format(Date()), Modifier.weight(1f), fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
             Text("📊 Usage", Modifier.padding(start = 6.dp).clip(RoundedCornerShape(14.dp)).background(chip).clickable { onAppUsage() }.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 13.sp, maxLines = 1, softWrap = false)
+            Text("🎨 Theme", Modifier.padding(start = 6.dp).clip(RoundedCornerShape(14.dp)).background(chip).clickable { onThemeSettings() }.padding(horizontal = 10.dp, vertical = 6.dp), fontSize = 13.sp, maxLines = 1, softWrap = false)
             if (nextEvent != null) {
                 val dl = daysBetween(dateKey(), nextEvent.date)
                 Text("🎯 " + (if (dl <= 0) "today" else "${dl}d"),
@@ -3848,6 +3908,7 @@ fun ProfileTab(name: String, email: String, studied: Long, subjectCount: Int, do
         Text("Personal Controls", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 8.dp))
 
         listOf(
+            "🎨  Theme & Custom Photo Wallpaper" to "theme_settings",
             "🐾  Change Study Mascot & Personality" to "mascot",
             "💡  App Guided Tour (Feature Walkthrough)" to "tour",
             "Screen Time & Reward Ledger" to "ledger",
@@ -6587,15 +6648,40 @@ fun SettingsScreen(
     daysOff: List<String>, onDaysOff: (List<String>) -> Unit,
     rate: Int, cap: Int, base: Int, pendingFrom: String?, studiedTodaySecs: Long, onSaveAdvanced: (Int, Int, Int) -> Unit,
     onSignOut: () -> Unit, fp: FocusPrefs, onFp: (FocusPrefs) -> Unit,
-    nick: String, onNick: (String) -> Unit, optIn: Boolean, onOptIn: (Boolean) -> Unit, onTour: () -> Unit, onBack: () -> Unit
+    nick: String, onNick: (String) -> Unit, optIn: Boolean, onOptIn: (Boolean) -> Unit, onTour: () -> Unit,
+    customWallpaperPath: String?, customWallpaperEnabled: Boolean, customWallpaperDark: Boolean, customWallpaperDim: Float,
+    onCustomWallpaperChange: (String?, Boolean, Boolean, Float) -> Unit,
+    initialPage: String = "",
+    onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
     val todayKey = dateKey()
     val notifLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
     fun askNotifications() { if (android.os.Build.VERSION.SDK_INT >= 33) notifLauncher.launch("android.permission.POST_NOTIFICATIONS") }
+    val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val file = File(ctx.filesDir, "custom_wallpaper_${System.currentTimeMillis()}.jpg")
+                ctx.contentResolver.openInputStream(uri)?.use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                if (customWallpaperPath != null && customWallpaperPath != file.absolutePath) {
+                    try { File(customWallpaperPath).delete() } catch (_: Exception) {}
+                }
+                onCustomWallpaperChange(file.absolutePath, true, customWallpaperDark, customWallpaperDim)
+                Toast.makeText(ctx, "Custom wallpaper applied! ✨", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "Failed to load image: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     var taps by remember { mutableStateOf(0) }
-    var page by remember { mutableStateOf("") }
+    var page by remember(initialPage) { mutableStateOf(initialPage) }
     var showRules by remember { mutableStateOf(false) }
     var r by remember(rate) { mutableStateOf(rate.coerceIn(0, 60)) }
     var c by remember(cap) { mutableStateOf(cap) }
@@ -6612,7 +6698,7 @@ fun SettingsScreen(
             }
             Text("Settings", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
             SettingsRow(Icons.Rounded.Person, "Profile and privacy", "Nickname and public rankings") { page = "privacy" }
-            SettingsRow(Icons.Rounded.Palette, "Appearance", "Theme and font") { page = "look" }
+            SettingsRow(Icons.Rounded.Palette, "Appearance", "Custom photo theme, wallpapers & font") { page = "look" }
             SettingsRow(Icons.Rounded.Timer, "Focus and breaks", "Pomodoro and break reminders") { page = "focus" }
             SettingsRow(Icons.Rounded.BeachAccess, "Days off", "Holidays and vacations") { page = "off" }
             SettingsRow(Icons.Rounded.Tune, "App Usage & Productivity", "Track screen time and classify productive vs distracting apps") { page = "app_usage" }
@@ -6692,8 +6778,192 @@ fun SettingsScreen(
                     }
                 }
                 "look" -> {
-                    Text("Appearance", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    SectionLabel("Theme")
+                    Text("Appearance", fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                    Text("Personalize your app with your own photo wallpaper, aesthetic themes, and fonts",
+                        fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp))
+
+                    // ---------- Custom Photo Wallpaper Section ----------
+                    SectionLabel("Custom Photo Theme")
+                    val hasCustomWp = customWallpaperPath != null && File(customWallpaperPath).exists()
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (hasCustomWp && customWallpaperEnabled) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("🖼️", fontSize = 22.sp)
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text("Your Custom Photo", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, softWrap = false)
+                                    Text(
+                                        if (hasCustomWp) {
+                                            if (customWallpaperEnabled) "✨ Active across all screens" else "Wallpaper paused"
+                                        } else "Select any photo or wallpaper from gallery",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                if (hasCustomWp) {
+                                    Switch(
+                                        checked = customWallpaperEnabled,
+                                        onCheckedChange = {
+                                            onCustomWallpaperChange(customWallpaperPath, it, customWallpaperDark, customWallpaperDim)
+                                        }
+                                    )
+                                }
+                            }
+
+                            if (hasCustomWp) {
+                                Spacer(Modifier.height(14.dp))
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    // Thumbnail preview with dim overlay
+                                    val thumbBmp = remember(customWallpaperPath) {
+                                        try {
+                                            val boundsOpts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                                            android.graphics.BitmapFactory.decodeFile(customWallpaperPath, boundsOpts)
+                                            var sample = 1
+                                            while (boundsOpts.outWidth / sample > 400 || boundsOpts.outHeight / sample > 400) sample *= 2
+                                            val opts = android.graphics.BitmapFactory.Options().apply {
+                                                inSampleSize = sample
+                                                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                                            }
+                                            android.graphics.BitmapFactory.decodeFile(customWallpaperPath, opts)?.asImageBitmap()
+                                        } catch (e: Exception) { null }
+                                    }
+                                    Box(
+                                        Modifier
+                                            .size(width = 80.dp, height = 110.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                                    ) {
+                                        if (thumbBmp != null) {
+                                            Image(
+                                                bitmap = thumbBmp,
+                                                contentDescription = "Wallpaper thumbnail",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                        Box(
+                                            Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    if (customWallpaperDark) Color.Black.copy(alpha = customWallpaperDim)
+                                                    else Color.White.copy(alpha = customWallpaperDim)
+                                                )
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Overlay Scrim", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                                        Text("Guarantees sharp text readability", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(Modifier.height(8.dp))
+                                        Row {
+                                            FilterChip(
+                                                selected = customWallpaperDark,
+                                                onClick = {
+                                                    onCustomWallpaperChange(customWallpaperPath, customWallpaperEnabled, true, customWallpaperDim)
+                                                },
+                                                label = { Text("🌙 Dark", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            FilterChip(
+                                                selected = !customWallpaperDark,
+                                                onClick = {
+                                                    onCustomWallpaperChange(customWallpaperPath, customWallpaperEnabled, false, customWallpaperDim)
+                                                },
+                                                label = { Text("☀️ Light", fontSize = 11.sp, maxLines = 1, softWrap = false) }
+                                            )
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Text("Dim: ${(customWallpaperDim * 100).toInt()}%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            listOf(0.20f to "20%", 0.35f to "35%", 0.50f to "50%", 0.65f to "65%").forEach { (v, lbl) ->
+                                                val isSel = kotlin.math.abs(customWallpaperDim - v) < 0.05f
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                                    modifier = Modifier.clickable {
+                                                        onCustomWallpaperChange(customWallpaperPath, customWallpaperEnabled, customWallpaperDark, v)
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        lbl,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isSel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                                        maxLines = 1,
+                                                        softWrap = false
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(14.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { imagePickerLauncher.launch("image/*") },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Icon(Icons.Rounded.Palette, contentDescription = null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        if (hasCustomWp) "Change Image 🖼️" else "Choose Image from Gallery 🖼️",
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                                if (hasCustomWp) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            try { File(customWallpaperPath).delete() } catch (_: Exception) {}
+                                            onCustomWallpaperChange(null, false, customWallpaperDark, customWallpaperDim)
+                                            Toast.makeText(ctx, "Custom wallpaper removed", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(14.dp)
+                                    ) {
+                                        Text("Remove", color = Color(0xFFE5484D), fontSize = 13.sp, maxLines = 1, softWrap = false)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    SectionLabel(if (hasCustomWp && customWallpaperEnabled) "Accent & Card Palette" else "Theme")
+                    Text(
+                        if (hasCustomWp && customWallpaperEnabled)
+                            "Choose accent colors and frosted card tones to complement your photo"
+                        else "Choose any aesthetic theme or scenic atmosphere",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                     themes.forEachIndexed { i, t ->
                         Row(Modifier.fillMaxWidth().clickable { onTheme(i) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(width = 68.dp, height = 40.dp).clip(RoundedCornerShape(10.dp)).background(Color(t.bg))
@@ -6706,8 +6976,8 @@ fun SettingsScreen(
                                 }
                             }
                             Spacer(Modifier.width(14.dp))
-                            Text(t.name, Modifier.weight(1f))
-                            if (i == themeIdx) Text("✓", color = accent, fontWeight = FontWeight.Bold)
+                            Text(t.name, Modifier.weight(1f), maxLines = 1, softWrap = false)
+                            if (i == themeIdx) Text("✓", color = accent, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                         }
                     }
                     SectionLabel("Font")
@@ -8753,6 +9023,51 @@ fun OnboardingScreen(onFinish: (String) -> Unit) {
                     Text(if (page < 3) "Next" else "Get started")
                 }
             }
+        }
+    }
+}
+
+// ---------- Custom Image Wallpaper Background ----------
+@Composable
+fun CustomImageBackground(imagePath: String, darkOverlay: Boolean, overlayDim: Float) {
+    val bitmap = remember(imagePath) {
+        try {
+            val file = File(imagePath)
+            if (file.exists()) {
+                val boundsOpts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeFile(imagePath, boundsOpts)
+                var sampleSize = 1
+                val maxDim = 1920
+                while (boundsOpts.outWidth / sampleSize > maxDim || boundsOpts.outHeight / sampleSize > maxDim) {
+                    sampleSize *= 2
+                }
+                val opts = android.graphics.BitmapFactory.Options().apply {
+                    inSampleSize = sampleSize
+                    inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                }
+                android.graphics.BitmapFactory.decodeFile(imagePath, opts)?.asImageBitmap()
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    if (bitmap != null) {
+        Box(Modifier.fillMaxSize()) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = "Custom Theme Wallpaper",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (darkOverlay) Color.Black.copy(alpha = overlayDim.coerceIn(0.1f, 0.85f))
+                        else Color.White.copy(alpha = overlayDim.coerceIn(0.1f, 0.85f))
+                    )
+            )
         }
     }
 }
